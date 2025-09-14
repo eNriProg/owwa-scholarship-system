@@ -1,0 +1,25 @@
+=== Cleanup run at 2025-09-13 17:27:56 ===
+Expired OTPs and linked pending updates deleted.
+Expired pending bank updates marked as expired.
+=== Cleanup finished ===
+
+=== Cleanup run at 2025-09-13 17:30:52 ===
+Deleted OTP + updates: 0 rows
+Expired requests updated: 0 rows
+=== Cleanup finished ===
+
+=== Cleanup run at 2025-09-13 18:00:01 ===
+Deleted OTP + updates: 0 rows
+Expired requests updated: 0 rows
+=== Cleanup finished ===
+
+=== Cleanup run at 2025-09-14 09:07:33 ===
+Deleted OTP + updates: 0 rows
+Expired requests updated: 0 rows
+=== Cleanup finished ===
+
+=== Cleanup run at 2025-09-14 09:07:34 ===
+Deleted OTP + updates: 0 rows
+Expired requests updated: 0 rows
+=== Cleanup finished ===
+
