@@ -3,11 +3,14 @@
 class ScholarModal {
     constructor() {
         this.modal = document.getElementById('addScholarModal2');
+        this.otpModal = document.getElementById('otpVerificationModal');
         this.form = null;
         this.isSubmitting = false;
         this.mode = 'add';
         this.editId = null;
-        this.originalBankDetails = null; // Track original bank details
+        this.originalBankDetails = null;
+        this.otpCooldownTimer = null;
+        this.otpExpiryTimer = null;
         this.init();
     }
 
@@ -27,19 +30,24 @@ class ScholarModal {
             });
         }
 
-        // Modal close events
+        // Main modal close events - ONLY close button and escape key
         if (this.modal) {
-            // Close on overlay click
+            // Remove overlay click to close
             this.modal.addEventListener('click', (e) => {
-                if (e.target === this.modal) {
-                    this.closeModal();
-                }
+                // Don't close on overlay click anymore
+                e.stopPropagation();
             });
 
             // Close on escape key
             document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && !this.modal.classList.contains('hidden')) {
-                    this.closeModal();
+                if (e.key === 'Escape') {
+                    if (!this.otpModal.classList.contains('hidden')) {
+                        // If OTP modal is open, close only OTP modal
+                        this.closeOtpModal();
+                    } else if (!this.modal.classList.contains('hidden')) {
+                        // If main modal is open, close main modal
+                        this.closeModal();
+                    }
                 }
             });
 
@@ -49,7 +57,6 @@ class ScholarModal {
                 contactInput.addEventListener('focus', (e) => {
                     if (e.target.value.trim() === '') {
                         e.target.value = '+63';
-                        // Put cursor at the end after setting value
                         setTimeout(() => {
                             e.target.selectionStart = e.target.selectionEnd = e.target.value.length;
                         }, 0);
@@ -58,60 +65,57 @@ class ScholarModal {
 
                 contactInput.addEventListener('input', (e) => {
                     let val = e.target.value;
-
-                    // If user deletes all input, don't auto-fill here — wait for focus event to add +63
-                    if (val === '') {
-                        return;
-                    }
-
-                    // If input doesn't start with '+63', add it once and keep the rest
+                    if (val === '') return;
+                    
                     if (!val.startsWith('+63')) {
                         val = '+63' + val.replace(/^(\+|0)*/, '');
                         e.target.value = val;
                     }
-
-                    // Allow user to type digits only after +63
-                    // Remove non-digit characters except the leading '+'
                     e.target.value = e.target.value[0] + e.target.value.slice(1).replace(/\D/g, '');
                 });
             }
         }
+
+        // OTP modal events - ONLY close button, cancel button and escape key
+        if (this.otpModal) {
+            this.otpModal.addEventListener('click', (e) => {
+                // Don't close on overlay click
+                e.stopPropagation();
+            });
+        }
     }
+
     setupBirthDateAgeCalculation() {
-    const birthDateInput = this.modal?.querySelector('input[name="birth_date"]');
-    const ageInput = this.modal?.querySelector('input[name="age"]');
+        const birthDateInput = this.modal?.querySelector('input[name="birth_date"]');
+        const ageInput = this.modal?.querySelector('input[name="age"]');
 
-    if (birthDateInput && ageInput) {
-        // Prevent selecting future dates
-        const today = new Date().toISOString().split("T")[0];
-        birthDateInput.setAttribute("max", today);
+        if (birthDateInput && ageInput) {
+            const today = new Date().toISOString().split("T")[0];
+            birthDateInput.setAttribute("max", today);
 
-       birthDateInput.addEventListener('change', (e) => {
-    const birthDate = new Date(e.target.value);
-    const todayDate = new Date();
+            birthDateInput.addEventListener('change', (e) => {
+                const birthDate = new Date(e.target.value);
+                const todayDate = new Date();
 
-    let age = todayDate.getFullYear() - birthDate.getFullYear();
-    const monthDiff = todayDate.getMonth() - birthDate.getMonth();
-    const dayDiff = todayDate.getDate() - birthDate.getDate();
+                let age = todayDate.getFullYear() - birthDate.getFullYear();
+                const monthDiff = todayDate.getMonth() - birthDate.getMonth();
+                const dayDiff = todayDate.getDate() - birthDate.getDate();
 
-    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
-        age--;
+                if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+                    age--;
+                }
+
+                if (age < 5) {
+                    this.showFieldError(birthDateInput, "Age must be at least 5 years old.");
+                    e.target.value = "";
+                    ageInput.value = "";
+                    return;
+                }
+
+                ageInput.value = age >= 0 ? age : "";
+            });
+        }
     }
-
-    if (age < 5) {
-        this.showFieldError(birthDateInput, "Age must be at least 5 years old.");
-        e.target.value = "";
-        ageInput.value = "";
-        return;
-    }
-
-    ageInput.value = age >= 0 ? age : "";
-});
-
-    }
-}
-
-
 
     openModal() {
         if (this.modal) {
@@ -120,7 +124,6 @@ class ScholarModal {
             this.clearForm();
             this.resetValidation();
 
-            // Focus on first input
             const firstInput = this.modal.querySelector('input, select');
             if (firstInput) {
                 firstInput.focus();
@@ -133,6 +136,7 @@ class ScholarModal {
             this.modal.classList.add('hidden');
             this.clearForm();
             this.resetValidation();
+            this.clearCooldownTimer();
         }
     }
 
@@ -143,11 +147,9 @@ class ScholarModal {
             input.classList.remove('error');
         });
 
-        // Clear any error messages
         const errorMessages = this.modal.querySelectorAll('.error-message');
         errorMessages.forEach(msg => msg.remove());
         
-        // Reset original bank details
         this.originalBankDetails = null;
     }
 
@@ -162,12 +164,10 @@ class ScholarModal {
         const inputs = this.modal.querySelectorAll('input, select');
 
         inputs.forEach(input => {
-            // Real-time validation
             input.addEventListener('blur', () => {
                 this.validateField(input);
             });
 
-            // Remove error on input
             input.addEventListener('input', () => {
                 if (input.classList.contains('error')) {
                     input.classList.remove('error');
@@ -186,13 +186,11 @@ class ScholarModal {
         let isValid = true;
         let errorMessage = '';
 
-        // Required field validation
         if (field.hasAttribute('required') && !value) {
             isValid = false;
             errorMessage = `${this.getFieldLabel(fieldName)} is required`;
         }
 
-        // Specific field validations
         if (isValid && value) {
             switch (fieldName) {
                 case 'contact_number':
@@ -217,8 +215,7 @@ class ScholarModal {
                         errorMessage = 'Age must be at least 5 years old';
                     }
                     break;
-
-               case 'batch':
+                case 'batch':
                     const year = parseInt(value);
                     const currentYear = new Date().getFullYear();
 
@@ -227,7 +224,6 @@ class ScholarModal {
                         errorMessage = `Batch year must be between 2000 and ${currentYear + 1}`;
                     }
                     break;
-
                 case 'last_name':
                 case 'first_name':
                     if (value.length < 2) {
@@ -243,7 +239,6 @@ class ScholarModal {
                     }
                     break;
                 case 'bank_details':
-                    // Clean bank details (remove spaces and dashes)
                     const cleanBankDetails = value.replace(/[\s\-]/g, '');
                     
                     if (cleanBankDetails.length < 6 || cleanBankDetails.length > 20) {
@@ -257,7 +252,6 @@ class ScholarModal {
             }
         }
 
-        // Apply validation result
         if (!isValid) {
             field.classList.add('error');
             this.showFieldError(field, errorMessage);
@@ -270,7 +264,6 @@ class ScholarModal {
     }
 
     validatePhoneNumber(phone) {
-        // Basic Philippine phone number validation
         const phoneRegex = /^\+63[0-9]{10}$/;
         return phoneRegex.test(phone);
     }
@@ -306,15 +299,10 @@ class ScholarModal {
     }
 
     showFieldError(field, message) {
-        // Remove existing error message
         this.removeFieldError(field);
-
-        // Create error message element
         const errorDiv = document.createElement('div');
         errorDiv.className = 'error-message show';
         errorDiv.textContent = message;
-
-        // Insert after the field
         field.parentNode.appendChild(errorDiv);
     }
 
@@ -346,7 +334,6 @@ class ScholarModal {
             if (input.name) {
                 let value = input.value.trim();
                 
-                // Clean bank details before sending to backend
                 if (input.name === 'bank_details' && value) {
                     value = value.replace(/[\s\-]/g, '');
                 }
@@ -359,7 +346,6 @@ class ScholarModal {
     }
 
     showNotification(message, type = 'info') {
-        // Create notification element
         const notification = document.createElement('div');
         notification.className = `notification notification-${type}`;
         notification.innerHTML = `
@@ -367,10 +353,8 @@ class ScholarModal {
             <button onclick="this.parentElement.remove()">&times;</button>
         `;
 
-        // Add to page
         document.body.appendChild(notification);
 
-        // Auto remove after 5 seconds
         setTimeout(() => {
             if (notification.parentElement) {
                 notification.remove();
@@ -397,7 +381,6 @@ class ScholarModal {
     async submitForm() {
         if (this.isSubmitting) return;
 
-        // Validate form
         if (!this.validateForm()) {
             this.showNotification('Please fix the errors in the form', 'warning');
             return;
@@ -419,12 +402,10 @@ class ScholarModal {
                 this.showNotification(this.mode === 'edit' ? 'Scholar updated successfully!' : 'Scholar added successfully!', 'success');
                 this.closeModal();
 
-                // Refresh the scholars table without reloading
                 if (typeof fetchScholars === 'function') {
                     fetchScholars();
                 }
             } else {
-                // Check if this is an OTP requirement error
                 if (response.requires_otp) {
                     this.showNotification('Bank details require OTP verification. Please click "Request OTP for Bank Update" first.', 'warning');
                 } else {
@@ -490,7 +471,6 @@ class ScholarModal {
             submitBtn.textContent = this.mode === 'edit' ? 'Update' : 'Save';
         }
         
-        // Show/hide OTP button based on mode
         if (otpButtonContainer) {
             if (this.mode === 'edit') {
                 otpButtonContainer.classList.remove('hidden');
@@ -517,7 +497,6 @@ class ScholarModal {
             const el = this.modal.querySelector(`[name="${name}"]`);
             if (!el) return;
             if (el.tagName.toLowerCase() === 'select') {
-                // If option not present, append it
                 const exists = Array.from(el.options).some(opt => opt.value === (value ?? ''));
                 if (!exists && value !== undefined && value !== null && value !== '') {
                     const opt = document.createElement('option');
@@ -564,7 +543,6 @@ class ScholarModal {
         setValue('school_address', data.school_address);
         setValue('remarks', data.remarks);
         setValue('bank_details', data.bank_details);
-        // Store original bank details for comparison
         this.originalBankDetails = data.bank_details || '';
         setValue('parent_name', data.parent_name);
         setValue('relationship', data.relationship);
@@ -576,7 +554,6 @@ class ScholarModal {
     }
 
     bindOtpEvents() {
-        // Request OTP button
         const requestOtpBtn = document.getElementById('requestOtpBtn');
         if (requestOtpBtn) {
             requestOtpBtn.addEventListener('click', () => {
@@ -584,25 +561,6 @@ class ScholarModal {
             });
         }
 
-        // OTP verification modal events
-        const otpModal = document.getElementById('otpVerificationModal');
-        if (otpModal) {
-            // Close on overlay click
-            otpModal.addEventListener('click', (e) => {
-                if (e.target === otpModal) {
-                    this.closeOtpModal();
-                }
-            });
-
-            // Close on escape key
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && !otpModal.classList.contains('hidden')) {
-                    this.closeOtpModal();
-                }
-            });
-        }
-
-        // Verify OTP button
         const verifyOtpBtn = document.getElementById('verifyOtpBtn');
         if (verifyOtpBtn) {
             verifyOtpBtn.addEventListener('click', () => {
@@ -610,7 +568,6 @@ class ScholarModal {
             });
         }
 
-        // Resend OTP button
         const resendOtpBtn = document.getElementById('resendOtpBtn');
         if (resendOtpBtn) {
             resendOtpBtn.addEventListener('click', () => {
@@ -618,21 +575,17 @@ class ScholarModal {
             });
         }
 
-        // OTP input formatting
         const otpInput = document.getElementById('otpInput');
         if (otpInput) {
             otpInput.addEventListener('input', (e) => {
-                // Only allow digits
                 e.target.value = e.target.value.replace(/\D/g, '');
                 
-                // Auto-submit when 6 digits are entered
                 if (e.target.value.length === 6) {
                     this.verifyOtp();
                 }
             });
         }
 
-        // Bank details change tracking
         const bankDetailsInput = document.getElementById('bankDetailsInput');
         if (bankDetailsInput) {
             bankDetailsInput.addEventListener('input', () => {
@@ -651,20 +604,17 @@ class ScholarModal {
         const currentBankDetails = bankDetailsInput.value.trim();
         const hasChanged = currentBankDetails !== this.originalBankDetails;
         
-        // Clean the bank details (remove spaces, dashes, keep only digits)
         const cleanBankDetails = currentBankDetails.replace(/[\s\-]/g, '');
         const isValidLength = cleanBankDetails.length >= 6 && cleanBankDetails.length <= 20;
         const isOnlyDigits = /^\d+$/.test(cleanBankDetails);
         
         if (hasChanged && isValidLength && isOnlyDigits) {
-            // Bank details have changed and are valid
             requestOtpBtn.disabled = false;
             requestOtpBtn.style.opacity = '1';
             otpHelpText.textContent = 'Bank details have been changed. OTP verification is required for security.';
             otpHelpText.style.color = '#dc3545';
             otpHelpText.style.fontWeight = '500';
         } else if (hasChanged && (!isValidLength || !isOnlyDigits)) {
-            // Bank details have changed but are invalid
             requestOtpBtn.disabled = true;
             requestOtpBtn.style.opacity = '0.6';
             if (!isOnlyDigits) {
@@ -675,7 +625,6 @@ class ScholarModal {
             otpHelpText.style.color = '#6c757d';
             otpHelpText.style.fontWeight = 'normal';
         } else {
-            // Bank details haven't changed
             requestOtpBtn.disabled = true;
             requestOtpBtn.style.opacity = '0.6';
             otpHelpText.textContent = 'Bank account updates require OTP verification for security.';
@@ -696,11 +645,9 @@ class ScholarModal {
             return;
         }
 
-        // Clean bank details (remove spaces and dashes)
         const rawBankDetails = bankDetailsInput.value.trim();
         const cleanBankDetails = rawBankDetails.replace(/[\s\-]/g, '');
         
-        // Validate cleaned bank details
         if (cleanBankDetails.length < 6 || cleanBankDetails.length > 20) {
             this.showNotification('Bank account must be 6-20 digits long', 'error');
             return;
@@ -714,7 +661,7 @@ class ScholarModal {
         const requestBtn = document.getElementById('requestOtpBtn');
         if (requestBtn) {
             requestBtn.disabled = true;
-            requestBtn.innerHTML = '<i data-lucide="loader-2"></i> Requesting OTP...';
+            requestBtn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Requesting OTP...';
         }
 
         try {
@@ -733,10 +680,18 @@ class ScholarModal {
             const result = await response.json();
 
             if (result.success) {
+                // ✅ Close the edit modal after successful OTP request
+                this.closeModal();
+                
                 this.showOtpModal(result);
                 this.showNotification('OTP generated successfully', 'success');
-            } else {
-                this.showNotification(result.message || 'Failed to generate OTP', 'error');
+            }  else {
+                // ✅ Handle cooldown error specially
+                if (result.cooldown_active) {
+                    this.showNotification(result.message, 'warning');
+                } else {
+                    this.showNotification(result.message || 'Failed to generate OTP', 'error');
+                }
             }
         } catch (error) {
             console.error('Error requesting OTP:', error);
@@ -752,72 +707,137 @@ class ScholarModal {
         }
     }
 
-    showOtpModal(otpData) {
-        const otpModal = document.getElementById('otpVerificationModal');
-        const otpScholarInfo = document.getElementById('otpScholarInfo');
-        const otpDisplayContainer = document.getElementById('otpDisplayContainer');
-        const otpDisplayValue = document.getElementById('otpDisplayValue');
-        const otpInput = document.getElementById('otpInput');
+    startCooldownTimer(seconds) {
+        const requestBtn = document.getElementById('requestOtpBtn');
+        const otpHelpText = document.querySelector('.otp-help-text');
+        
+        if (!requestBtn || !otpHelpText) return;
 
-        if (otpModal) {
-            // Update scholar info
-            if (otpScholarInfo) {
-                otpScholarInfo.textContent = `OTP sent to ${otpData.scholar_name}. Please check your email.`;
-            }
+        let timeLeft = seconds;
+        requestBtn.disabled = true;
 
-            // Show OTP for localhost testing
-            if (otpData.otp) {
-                if (otpDisplayContainer) {
-                    otpDisplayContainer.classList.remove('hidden');
-                }
-                if (otpDisplayValue) {
-                    otpDisplayValue.textContent = otpData.otp;
-                }
-            }
-
-            // Clear OTP input
-            if (otpInput) {
-                otpInput.value = '';
-            }
-
-            // Start timer
-            this.startOtpTimer(otpData.expires_in || 15);
-
-            // Show modal
-            otpModal.classList.remove('hidden');
-
-            // Focus on OTP input
-            setTimeout(() => {
-                if (otpInput) {
-                    otpInput.focus();
-                }
-            }, 100);
-
-            // Initialize Lucide icons
-            if (window.lucide) {
-                window.lucide.createIcons();
-            }
-        }
-    }
-
-    startOtpTimer(minutes) {
-        let timeLeft = minutes * 60; // Convert to seconds
-        const timerElement = document.getElementById('otpTimer');
-        const verifyBtn = document.getElementById('verifyOtpBtn');
-        const resendBtn = document.getElementById('resendOtpBtn');
-
-        const timer = setInterval(() => {
+        this.otpTimer = setInterval(() => {
             const minutes = Math.floor(timeLeft / 60);
             const seconds = timeLeft % 60;
             
             if (timerElement) {
                 timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
             }
-
+        
             if (timeLeft <= 0) {
-                clearInterval(timer);
+                clearInterval(this.otpTimer);
                 if (timerElement) {
                     timerElement.textContent = 'Expired';
+                }
+                if (verifyBtn) {
+                    verifyBtn.disabled = true;
+                }
+                if (resendBtn) {
+                    resendBtn.disabled = false;
+                    resendBtn.innerHTML = '<i data-lucide="refresh-cw"></i> Resend OTP';
+                    if (window.lucide) {
+                        window.lucide.createIcons();
+                    }
+                }
+            } else {
+                timeLeft--;
+                
+                // ✅ Show countdown on resend button for first 3 minutes (180 seconds)
+                const initialTime = minutes * 60;
+                const elapsedTime = initialTime - timeLeft;
+                
+                if (elapsedTime < 180) { // First 3 minutes
+                    const remainingWaitTime = 180 - elapsedTime;
+                    const waitMinutes = Math.floor(remainingWaitTime / 60);
+                    const waitSeconds = remainingWaitTime % 60;
+                    
+                    if (resendBtn) {
+                        resendBtn.innerHTML = `<i data-lucide="clock"></i> Wait ${waitMinutes}:${waitSeconds.toString().padStart(2, '0')}`;
+                        resendBtn.disabled = true;
+                        if (window.lucide) {
+                            window.lucide.createIcons();
+                        }
+                    }
+                } else {
+                    // ✅ Enable resend button after 3 minutes
+                    if (resendBtn && resendBtn.disabled) {
+                        resendBtn.disabled = false;
+                        resendBtn.innerHTML = '<i data-lucide="refresh-cw"></i> Resend OTP';
+                        if (window.lucide) {
+                            window.lucide.createIcons();
+                        }
+                    }
+                }
+            }
+        }, 1000);
+    }
+
+    clearCooldownTimer() {
+        if (this.otpCooldownTimer) {
+            clearInterval(this.otpCooldownTimer);
+            this.otpCooldownTimer = null;
+        }
+        if (this.otpExpiryTimer) {
+            clearInterval(this.otpExpiryTimer);
+            this.otpExpiryTimer = null;
+        }
+    }
+
+    showOtpModal(otpData) {
+        const otpScholarInfo = document.getElementById('otpScholarInfo');
+        const otpDisplayContainer = document.getElementById('otpDisplayContainer');
+        const otpDisplayValue = document.getElementById('otpDisplayValue');
+        const otpInput = document.getElementById('otpInput');
+
+        if (otpScholarInfo) {
+            otpScholarInfo.textContent = `OTP sent to ${otpData.scholar_name}. Please check your email.`;
+        }
+
+        if (otpData.otp && otpDisplayContainer && otpDisplayValue) {
+            otpDisplayContainer.classList.remove('hidden');
+            otpDisplayValue.textContent = otpData.otp;
+        }
+
+        if (otpInput) {
+            otpInput.value = '';
+        }
+
+        // Start 5-minute expiry timer
+        this.startOtpExpiryTimer(5 * 60); // 5 minutes
+
+        this.otpModal.classList.remove('hidden');
+
+        setTimeout(() => {
+            if (otpInput) {
+                otpInput.focus();
+            }
+        }, 100);
+
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    }
+
+    startOtpExpiryTimer(seconds) {
+        let timeLeft = seconds;
+        const timerElement = document.getElementById('otpTimer');
+        const verifyBtn = document.getElementById('verifyOtpBtn');
+        const resendBtn = document.getElementById('resendOtpBtn');
+
+        this.otpExpiryTimer = setInterval(() => {
+            const minutes = Math.floor(timeLeft / 60);
+            const secs = timeLeft % 60;
+            
+            if (timerElement) {
+                timerElement.textContent = `${minutes}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            if (timeLeft <= 0) {
+                clearInterval(this.otpExpiryTimer);
+                this.otpExpiryTimer = null;
+                if (timerElement) {
+                    timerElement.textContent = 'Expired';
+                    timerElement.style.color = '#ef4444';
                 }
                 if (verifyBtn) {
                     verifyBtn.disabled = true;
@@ -829,9 +849,6 @@ class ScholarModal {
                 timeLeft--;
             }
         }, 1000);
-
-        // Store timer reference for cleanup
-        this.otpTimer = timer;
     }
 
     async verifyOtp() {
@@ -850,7 +867,7 @@ class ScholarModal {
 
         if (verifyBtn) {
             verifyBtn.disabled = true;
-            verifyBtn.innerHTML = '<i data-lucide="loader-2"></i> Verifying...';
+            verifyBtn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Verifying...';
         }
 
         try {
@@ -872,13 +889,11 @@ class ScholarModal {
                 this.showNotification('Bank details updated successfully!', 'success');
                 this.closeOtpModal();
                 
-                // Update the bank details input with the new value
                 const bankDetailsInput = document.getElementById('bankDetailsInput');
                 if (bankDetailsInput && result.new_bank_details) {
                     bankDetailsInput.value = result.new_bank_details;
                 }
 
-                // Refresh the scholars table
                 if (typeof fetchScholars === 'function') {
                     fetchScholars();
                 }
@@ -902,14 +917,25 @@ class ScholarModal {
     async resendOtp() {
         const resendBtn = document.getElementById('resendOtpBtn');
         
+        if (resendBtn && resendBtn.disabled) {
+            this.showNotification('Please wait before requesting a new OTP', 'warning');
+            return;
+        }
+        
         if (resendBtn) {
             resendBtn.disabled = true;
             resendBtn.innerHTML = '<i data-lucide="loader-2"></i> Resending...';
         }
-
+    
         try {
-            // Reuse the requestOtp method
+            // Close current OTP modal first
+            this.closeOtpModal();
+            
+            // Request a new OTP
             await this.requestOtp();
+        } catch (error) {
+            console.error('Error resending OTP:', error);
+            this.showNotification('Network error while resending OTP', 'error');
         } finally {
             if (resendBtn) {
                 resendBtn.disabled = false;
@@ -922,29 +948,22 @@ class ScholarModal {
     }
 
     closeOtpModal() {
-        const otpModal = document.getElementById('otpVerificationModal');
-        if (otpModal) {
-            otpModal.classList.add('hidden');
+        if (this.otpModal) {
+            this.otpModal.classList.add('hidden');
             
-            // Clear OTP input
             const otpInput = document.getElementById('otpInput');
             if (otpInput) {
                 otpInput.value = '';
             }
 
-            // Clear timer
-            if (this.otpTimer) {
-                clearInterval(this.otpTimer);
-                this.otpTimer = null;
-            }
+            this.clearCooldownTimer();
 
-            // Reset timer display
             const timerElement = document.getElementById('otpTimer');
             if (timerElement) {
-                timerElement.textContent = '15:00';
+                timerElement.textContent = '5:00';
+                timerElement.style.color = '';
             }
 
-            // Reset buttons
             const verifyBtn = document.getElementById('verifyOtpBtn');
             const resendBtn = document.getElementById('resendOtpBtn');
             
@@ -958,13 +977,11 @@ class ScholarModal {
                 resendBtn.innerHTML = '<i data-lucide="refresh-cw"></i> Resend OTP';
             }
 
-            // Hide OTP display
             const otpDisplayContainer = document.getElementById('otpDisplayContainer');
             if (otpDisplayContainer) {
                 otpDisplayContainer.classList.add('hidden');
             }
 
-            // Reinitialize Lucide icons
             if (window.lucide) {
                 window.lucide.createIcons();
             }
@@ -1074,6 +1091,19 @@ if (!document.querySelector('#notification-styles')) {
             to {
                 transform: translateX(0);
                 opacity: 1;
+            }
+        }
+
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
             }
         }
     `;

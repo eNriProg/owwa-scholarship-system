@@ -66,6 +66,53 @@ if ($duplicate_result->num_rows > 0) {
 $duplicate_stmt->close();
 
 try {
+    // ✅ CHECK FOR 24-HOUR COOLDOWN ON SUCCESSFUL BANK UPDATES
+    $cooldown_check_query = "
+        SELECT completed_at 
+        FROM pending_bank_updates 
+        WHERE scholar_id = ? 
+          AND status = 'completed' 
+          AND completed_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        ORDER BY completed_at DESC 
+        LIMIT 1
+    ";
+    
+    $cooldown_stmt = $conn->prepare($cooldown_check_query);
+    $cooldown_stmt->bind_param('i', $scholar_id);
+    $cooldown_stmt->execute();
+    $cooldown_result = $cooldown_stmt->get_result();
+    
+    if ($cooldown_result->num_rows > 0) {
+        $last_update = $cooldown_result->fetch_assoc();
+        $last_update_time = strtotime($last_update['completed_at']);
+        $current_time = time();
+        $time_diff = $current_time - $last_update_time;
+        $hours_remaining = 24 - floor($time_diff / 3600);
+        $minutes_remaining = 60 - floor(($time_diff % 3600) / 60);
+        
+        // If less than 24 hours have passed
+        if ($time_diff < (24 * 3600)) {
+            $cooldown_stmt->close();
+            http_response_code(400);
+            
+            if ($hours_remaining > 0) {
+                $wait_message = "You must wait {$hours_remaining} hour(s) and {$minutes_remaining} minute(s) before updating bank details again. Please try again later.";
+            } else {
+                $wait_message = "You must wait {$minutes_remaining} minute(s) before updating bank details again. Please try again later.";
+            }
+            
+            echo json_encode([
+                'success' => false, 
+                'message' => $wait_message,
+                'cooldown_active' => true,
+                'hours_remaining' => $hours_remaining,
+                'minutes_remaining' => $minutes_remaining
+            ]);
+            exit;
+        }
+    }
+    $cooldown_stmt->close();
+
     // Start transaction
     $conn->begin_transaction();
 
@@ -90,7 +137,7 @@ try {
     // Set expiry time (15 minutes from now)
     $expires_at = date('Y-m-d H:i:s', time() + (15 * 60));
     
-    // FIX: Define max_attempts variable
+    // Define max_attempts variable
     $max_attempts = 3;
 
     // Insert OTP verification record with attempts initialized to 0

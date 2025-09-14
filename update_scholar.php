@@ -35,7 +35,7 @@ $sex = trim($input['sex'] ?? '');
 $home_address = trim($input['home_address'] ?? '');
 $province = trim($input['province'] ?? '');
 $contact_number = trim($input['contact_number'] ?? '');
-$email = trim($input['email'] ?? '');   // ✅ added
+$email = trim($input['email'] ?? '');
 $course = trim($input['course'] ?? '');
 $years = isset($input['years']) ? (int)$input['years'] : null;
 $year_level = trim($input['year_level'] ?? '');
@@ -51,7 +51,7 @@ $gender = trim($input['gender'] ?? '');
 $jobsite = trim($input['jobsite'] ?? '');
 $position = trim($input['position'] ?? '');
 
-// ✅ Required fields
+// Required fields
 $required = [
     'program' => $program,
     'batch' => $batch,
@@ -99,11 +99,13 @@ try {
     $clean_bank_details = preg_replace('/[\s\-]/', '', $bank_details);
     $clean_current_bank_details = preg_replace('/[\s\-]/', '', $current_bank_details);
     
-    // If bank details are being changed, check for OTP verification
-    if ($clean_bank_details !== $clean_current_bank_details) {
-        // Check if there's a completed OTP verification for this scholar
+    // ✅ Only check OTP if bank details are actually being changed
+    $bank_details_changed = ($clean_bank_details !== $clean_current_bank_details);
+    
+    if ($bank_details_changed) {
+        // Check if there's a completed OTP verification for this exact bank update
         $otp_check_query = "
-            SELECT p.id, p.status 
+            SELECT p.id, p.status, p.completed_at
             FROM pending_bank_updates p
             INNER JOIN otp_verifications o ON p.otp_verification_id = o.id
             WHERE p.scholar_id = ? 
@@ -130,9 +132,19 @@ try {
             exit;
         }
         
+        $otp_data = $otp_check_result->fetch_assoc();
+        
+        // ✅ Mark the OTP verification as consumed to prevent reuse
+        $consume_otp_query = "UPDATE pending_bank_updates SET status = 'consumed' WHERE id = ?";
+        $consume_stmt = $conn->prepare($consume_otp_query);
+        $consume_stmt->bind_param('i', $otp_data['id']);
+        $consume_stmt->execute();
+        $consume_stmt->close();
+        
         $otp_check_stmt->close();
     }
 
+    // Proceed with the update
     if ($hasBirthDate) {
         $sql = "UPDATE scholars SET 
             program=?, batch=?, last_name=?, first_name=?, middle_name=?, birth_date=?, sex=?, home_address=?, province=?, contact_number=?, email=?,
@@ -143,7 +155,6 @@ try {
         $stmt = $conn->prepare($sql);
         if (!$stmt) throw new Exception('Prepare failed: ' . $conn->error);
 
-        // ✅ notice extra `s` in types for email
         $stmt->bind_param(
             'sissssssssssissssssssssssi',
             $program,
@@ -156,7 +167,7 @@ try {
             $home_address,
             $province,
             $contact_number,
-            $email,       // ✅ here
+            $email,
             $course,
             $years,
             $year_level,
@@ -194,7 +205,7 @@ try {
             $home_address,
             $province,
             $contact_number,
-            $email,      // ✅ here
+            $email,
             $course,
             $years,
             $year_level,
@@ -225,3 +236,4 @@ try {
     if (isset($stmt)) $stmt->close();
     $conn->close();
 }
+?>
