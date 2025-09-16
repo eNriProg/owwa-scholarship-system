@@ -11,14 +11,67 @@ class ScholarModal {
         this.originalBankDetails = null;
         this.otpCooldownTimer = null;
         this.otpExpiryTimer = null;
+        // Address data for cascading dropdowns
+this.addressData = {
+    "Basilan": {
+        cities: ["Isabela City", "Lamitan City"],
+        municipalities: ["Akbar", "Al-Barka", "Hadji Mohammad Ajul", "Hadji Muhtamad", "Lantawan", "Maluso", "Sumisip", "Tabuan-Lasa", "Tipo-Tipo", "Tuburan", "Ungkaya Pukan"],
+        barangays: {
+            "Isabela City": [
+                "Aguada", "Baluno", "Begang", "Binuangan", "Busay", "Cabunbata",
+                "Calvario", "Carbon", "Claret", "Diki", "Fort Pilar", "Gubwan",
+                "Kaumpurnah", "La Piedad", "Lamisahan", "Lukbuton", "Malagutay",
+                "Maluso", "Marang-Marang", "Marketsite", "Menzi", "Panigayan",
+                "Port Area", "Riverside", "San Rafael", "Santa Barbara", "Small Kaumpurnah",
+                "Sumagdang", "Sunrise Village", "Tabuk", "Tabiawan", "Tolosa"
+            ],
+            "Lamitan City": [
+                "Arco", "Baimbing", "Balagtasan", "Balas", "Balobo", "Bungkaong",
+                "Bualan", "Colonia", "Lanote", "Look Bato", "Maganda", "Malinis",
+                "Matibay", "Parangbasak", "Sabong", "Sengal", "Sinangkapan",
+                "Tandong Ahas", "Ulitan", "Pasilmanta", "Ba-as", "Campo Uno"
+            ]
+        }
+    },
+    "Zamboanga del Norte": {
+        municipalities: [
+            "Bacungan", "Baliguian", "Dapitan", "Dipolog", "Godod", "Gutalac",
+            "Jose Dalman", "Kalawit", "Katipunan", "La Libertad", "Labason",
+            "Leon B. Postigo", "Liloy", "Manukan", "Mutia", "Piñan", "Polanco",
+            "Pres. Manuel A. Roxas", "Rizal", "Salug", "Sergio Osmeña Sr.",
+            "Siayan", "Sibuco", "Sindangan", "Siocon", "Sirawai", "Tampilisan"
+        ],
+        barangays: {
+            "Dipolog": ["Barra", "Biasong", "Central", "Cogon", "Dicayas", "Diwan", "Estaca", "Galas", "Gulayon", "Lugdungan", "Miputak", "Olingan", "Punta", "Santa Isabel", "Sicayab", "Sinaman", "Sunset", "Turno"],
+            "Dapitan": ["Aliguay", "Antipolo", "Ba-ao", "Bagting", "Bambanan", "Barcelona", "Baylimango", "Burgos", "Carang", "Cawa-cawa", "Dapitan", "Dawo", "Diwa-an", "Guimputlan", "Ilaya", "Lagting", "Linabo", "Magsaysay", "Matimbo", "Opao", "Oro", "Potol", "Sabang", "San Nicolas", "San Pedro", "San Vicente", "Santa Cruz", "Santo Niño", "Sikatuna", "Sulangon", "Taguilon", "Talisay", "Tamion", "Tiguma", "Villa Aurora"]
+        }
+    },
+    "Zamboanga del Sur": {
+        cities: ["Zamboanga City", "Pagadian City"],
+        municipalities: ["Aurora", "Bayog", "Dimataling", "Dinas", "Dumalinao", "Dumingag", "Guipos", "Josefina", "Kumalarang", "Labangan", "Lakewood", "Lapuyan", "Mahayag", "Margosatubig", "Midsalip", "Molave", "Pitogo", "Ramon Magsaysay", "San Miguel", "San Pablo", "Sominot", "Tabina", "Tambulig", "Tigbao", "Tukuran", "Vincenzo A. Sagun"],
+        barangays: {
+            "Zamboanga City": ["Ayala", "Baliwasan", "Boalan", "Bolong", "Bunguiao", "Busay", "Calabasa", "Camino Nuevo", "Canelar", "Capisan", "Caputian", "Cawit", "Curuan", "Divisoria", "Dulian", "Guiwan", "Kasanyangan", "La Paz", "Lamisahan", "Landang Gua", "Landang Laum", "Lanzones", "Latuan", "Lubigan", "Lunzuran", "Maasin", "Malagutay", "Mampang", "Manicahan", "Mariki", "Mercedes", "Muti", "Pamucutan", "Pasobolong", "Patalon", "Poblacion", "Putik", "Quiniput", "Recodo", "Rio Hondo", "Salaan", "San Jose Cawa-cawa", "San Jose Gusu", "San Roque", "Santa Barbara", "Santa Catalina", "Santa Maria", "Santo Niño", "Sibulao", "Sinubung", "Sinunoc", "Talon-talon", "Talisayan", "Tetuan", "Tigbalabag", "Tigtabon", "Tolosa", "Tugbungan", "Tulungatung", "Tumaga", "Upper Calarian", "Victoria", "Vitali", "Yulo", "Zambowood"],
+            "Pagadian City": ["Balangasan", "Baloyboan", "Banale", "Barcelona", "Bulatok", "Bungiao", "Dao-ao", "Dumagoc", "Gatas", "Gubac", "Kagawasan", "Kawit", "Lenienza", "Lower Sibatang", "Lourdes", "Macasing", "Napolan", "Pajo", "San Francisco", "San Pedro", "Santiago", "Santo Niño", "Tiguma", "Tigumon", "Tulangan", "Tumalasay", "Upper Sibatang", "White Beach"]
+        }
+    },
+    "Zamboanga Sibugay": {
+        municipalities: ["Alicia", "Buug", "Diplahan", "Imelda", "Ipil", "Kabasalan", "Mabuhay", "Malangas", "Naga", "Olutanga", "Payao", "Roseller Lim", "Siay", "Talusan", "Titay", "Tungawan"],
+        barangays: {
+            "Ipil": ["Balas", "Boalan", "Dumalinao", "Imelda", "Kapok", "Keputatan", "Lourdes", "Lumbayao", "Maasin", "Makilas", "Pangi", "Poblacion East", "Poblacion West", "Roseller Lim", "San Isidro", "San Pedro", "Santa Filomena", "Santo Niño", "Tenan", "Umaloy"],
+            "Kabasalan": ["Bagalupa", "Balabawan", "Bangkaw-bangkaw", "Calube", "Conacon", "Dimalinao", "Kahayagan", "Labrador", "Little Baguio", "Lumbog", "Magahub", "Maitom", "Malangas", "Poblacion", "San Isidro", "Sandayong", "Sapa Daan", "Tabayo", "Taguisan", "Tigbao"]
+        }
+    }
+};
         this.init();
     }
 
     init() {
-        this.bindEvents();
-        this.setupFormValidation();
-        this.setupBirthDateAgeCalculation();
-        this.bindOtpEvents();
+            this.bindEvents();
+            this.setupFormValidation();
+            this.setupBirthDateAgeCalculation();
+            this.bindOtpEvents();
+            this.setupAddressCascading();        // ADD THIS LINE
+            this.setupPresentAddressCopy();      // ADD THIS LINE
     }
 
     bindEvents() {
@@ -551,8 +604,115 @@ class ScholarModal {
         setValue('gender', data.gender);
         setValue('jobsite', data.jobsite);
         setValue('position', data.position);
+        setValue('present_street', data.present_street);
     }
-
+    setupAddressCascading() {
+        const provinceSelect = this.modal?.querySelector('select[name="province"]');
+        const citySelect = this.modal?.querySelector('select[name="city"]');
+        const barangaySelect = this.modal?.querySelector('select[name="barangay"]');
+    
+        if (!provinceSelect || !citySelect || !barangaySelect) return;
+    
+        provinceSelect.addEventListener('change', (e) => {
+            this.updateCityOptions(e.target.value);
+            this.clearBarangayOptions();
+        });
+    
+        citySelect.addEventListener('change', (e) => {
+            this.updateBarangayOptions(provinceSelect.value, e.target.value);
+        });
+    }
+    
+    updateCityOptions(province) {
+        const citySelect = this.modal?.querySelector('select[name="city"]');
+        if (!citySelect || !province) return;
+    
+        citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+        const provinceData = this.addressData[province];
+        if (provinceData) {
+            if (provinceData.cities) {
+                provinceData.cities.forEach(city => {
+                    const option = document.createElement('option');
+                    option.value = city;
+                    option.textContent = city;
+                    citySelect.appendChild(option);
+                });
+            }
+            if (provinceData.municipalities) {
+                provinceData.municipalities.forEach(municipality => {
+                    const option = document.createElement('option');
+                    option.value = municipality;
+                    option.textContent = municipality;
+                    citySelect.appendChild(option);
+                });
+            }
+        }
+    }
+    
+    updateBarangayOptions(province, city) {
+        const barangaySelect = this.modal?.querySelector('select[name="barangay"]');
+        if (!barangaySelect || !province || !city) return;
+    
+        barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
+        const provinceData = this.addressData[province];
+        if (provinceData && provinceData.barangays && provinceData.barangays[city]) {
+            provinceData.barangays[city].forEach(barangay => {
+                const option = document.createElement('option');
+                option.value = barangay;
+                option.textContent = barangay;
+                barangaySelect.appendChild(option);
+            });
+        }
+    }
+    
+    clearBarangayOptions() {
+        const barangaySelect = this.modal?.querySelector('select[name="barangay"]');
+        if (barangaySelect) {
+            barangaySelect.innerHTML = '<option value="">Select City/Municipality first</option>';
+        }
+    }
+    
+    setupPresentAddressCopy() {
+        const checkbox = this.modal?.querySelector('#sameAsHomeAddress');
+        const presentFields = this.modal?.querySelector('.present-address-fields');
+        
+        if (!checkbox || !presentFields) return;
+    
+        checkbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                this.copyHomeToPresent();
+                presentFields.style.opacity = '0.6';
+                presentFields.style.pointerEvents = 'none';
+            } else {
+                this.clearPresentAddress();
+                presentFields.style.opacity = '1';
+                presentFields.style.pointerEvents = 'auto';
+            }
+        });
+    }
+    
+    copyHomeToPresent() {
+        const homeStreet = this.modal?.querySelector('input[name="street"]')?.value || '';
+        const homeBarangay = this.modal?.querySelector('select[name="barangay"]')?.value || '';
+        const homeCity = this.modal?.querySelector('select[name="city"]')?.value || '';
+        const homeProvince = this.modal?.querySelector('select[name="province"]')?.value || '';
+    
+        const presentAddressInput = this.modal?.querySelector('input[name="present_street"]');
+    
+        if (presentAddressInput) {
+            // Combine all home address components into one string
+            const addressParts = [homeProvince, homeCity, homeBarangay, homeStreet].filter(part => part.trim() !== '');
+            presentAddressInput.value = addressParts.join(' / ');
+        }
+    }
+    
+    clearPresentAddress() {
+        const presentAddressInput = this.modal?.querySelector('input[name="present_street"]');
+        
+        if (presentAddressInput) {
+            presentAddressInput.value = '';
+        }
+    }
     bindOtpEvents() {
         const requestOtpBtn = document.getElementById('requestOtpBtn');
         if (requestOtpBtn) {

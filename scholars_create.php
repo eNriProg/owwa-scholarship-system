@@ -32,6 +32,15 @@ foreach ($required as $field) {
     }
 }
 
+// Handle present address - if present_street is provided, map it to the correct database field
+if (isset($input['present_street']) && !empty($input['present_street'])) {
+    // Store the present address in whatever field your database uses
+    // Adjust the field name based on your database schema
+    $input['present_address'] = trim($input['present_street']);
+    // Remove the temporary field name
+    unset($input['present_street']);
+}
+
 // Validate bank details if provided
 if (isset($input['bank_details']) && !empty($input['bank_details'])) {
     $bank_details = trim($input['bank_details']);
@@ -126,3 +135,4 @@ echo json_encode(['success' => true, 'id' => $conn->insert_id]);
 
 $stmt->close();
 $conn->close();
+?>

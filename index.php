@@ -447,27 +447,58 @@ if (!isset($_SESSION['admin_id'])) {
 
 				<!-- Address Information Section -->
 				<div class="modal-section">
-					<h3><i data-lucide="map-pin" class="icon"></i> Address Information</h3>
-					<hr>
-					<div class="form-grid">
+	<h3><i data-lucide="map-pin" class="icon"></i> Address Information</h3>
+	<hr>
+	<div class="form-grid">
 
-					<label>Home Address<input type="text" name="home_address" required /></label>
+		<label>Province
+			<select name="province" required>
+				<option value="">Select Province</option>
+				<option value="Basilan">Basilan</option>
+				<option value="Zamboanga del Norte">Zamboanga del Norte</option>
+				<option value="Zamboanga del Sur">Zamboanga del Sur</option>
+				<option value="Zamboanga Sibugay">Zamboanga Sibugay</option>
+			</select>
+		</label>
 
-					<label>Province
-						<select name="province" required>
-							
-								<option value="Zamboanga City">Zamboanga City</option>
-								<option value="Zamboanga del Norte">Zamboanga del Norte</option>
-								<option value="Zamboanga del Sur">Zamboanga del Sur</option>
-								<option value="Zamboanga Sibugay">Zamboanga Sibugay</option>
-								<option value="Dipolog City">Dipolog City</option>
-								<option value="Pagadian City">Pagadian City</option>
-								<option value="Isabela City">Isabela City</option>
-						</select>
-					</label>
+		<label>City/Municipality
+			<select name="city" required>
+				<option value="">Select Province first</option>
+			</select>
+		</label>
 
-					</div>
-				</div>
+		<label>Barangay
+			<select name="barangay" required>
+				<option value="">Select City/Municipality first</option>
+			</select>
+		</label>
+
+		<label>Street/Purok/Sitio
+			<input type="text" name="street" placeholder="Street, Purok, or Sitio" required />
+		</label>
+
+	</div>
+</div>
+
+<!-- Present Address Section -->
+<div class="modal-section">
+	<h3><i data-lucide="map-pin-check" class="icon"></i> Present Address</h3>
+	<hr>
+	<div class="same-address-checkbox">
+		<label class="checkbox-label">
+			<input type="checkbox" id="sameAsHomeAddress" />
+			<span class="checkmark"></span>
+			Same as Home Address
+		</label>
+	</div>
+	<div class="present-address-fields">
+		<div class="form-grid">
+			<label>Present Address
+				<input type="text" name="present_street" placeholder="Province / City / Barangay / Street" />
+			</label>
+		</div>
+	</div>
+</div>
 
 				<!-- Academic Information Section -->
 				<div class="modal-section">
