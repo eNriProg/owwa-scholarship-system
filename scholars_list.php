@@ -11,8 +11,8 @@ if (!isset($_SESSION['admin_id'])) {
 require_once __DIR__ . '/../includes/db_conn.php';
 
 try {
-    $sql = "SELECT id, program, batch, last_name, first_name, middle_name, birth_date, sex, home_address, province,
-                   contact_number, email, course, years, year_level, school, school_address, remarks,
+    $sql = "SELECT id, program, batch, education_level, last_name, first_name, middle_name, birth_date, sex, province, city, barangay, street,present_address,
+                   contact_number, email, course, years, year_level,semester, grading_period, grade_level, strand, school, school_id, school_address, remarks, bank_id,
                    bank_details, parent_name, relationship, ofw_name, category, gender, jobsite, position, created_at
             FROM scholars
             ORDER BY created_at DESC";

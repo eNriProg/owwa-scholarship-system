@@ -17,7 +17,7 @@ async function fetchScholars() {
           id: row.id,
           batch: row.batch,
           name: `${row.last_name}, ${row.first_name}${row.middle_name ? ' ' + row.middle_name : ''}`,
-          address: row.home_address,
+          address: `${row.street || ''}, ${row.barangay || ''}, ${row.city || ''}, ${row.province || ''}`,
           province: row.province || '',
           program: row.program,
           contact: row.contact_number,
@@ -29,7 +29,6 @@ async function fetchScholars() {
       })
       // Sort scholars alphabetically by name (last name first, then first name)
       .sort((a, b) => {
-        // Compare names alphabetically (case-insensitive)
         const nameA = a.name.toLowerCase();
         const nameB = b.name.toLowerCase();
         return nameA.localeCompare(nameB);
@@ -44,6 +43,7 @@ async function fetchScholars() {
     console.error('Failed to fetch scholars', e);
   }
 }
+
 
 
 const COLORS = {
@@ -2444,6 +2444,13 @@ function handleViewScholar(scholarData, scholarRow) {
   if (!id) {
     showNotification('Cannot view: missing scholar ID', 'error');
     // Try using the row data directly if ID is missing
+    const fallbackAddress = [
+      scholarData.province || '',
+      scholarData.city || '',
+      scholarData.barangay || '',
+      scholarData.street || ''
+    ].filter(Boolean).join(', ');
+
     const fallbackData = {
       first_name: scholarData.name?.split(', ')[1]?.split(' ')[0] || 'Unknown',
       last_name: scholarData.name?.split(', ')[0] || 'Unknown',
@@ -2451,7 +2458,11 @@ function handleViewScholar(scholarData, scholarRow) {
       batch: scholarData.batch || '-',
       sex: scholarData.sex || '-',
       contact_number: scholarData.contact || '-',
-      home_address: scholarData.address || '-',
+      address: fallbackAddress || '-',
+      province: scholarData.province || '-',
+      city: scholarData.city || '-',
+      barangay: scholarData.barangay || '-',
+      street: scholarData.street || '-',
       bank_details: scholarData.bankDetails || '-'
     };
     console.log('Using fallback data:', fallbackData);
@@ -2466,6 +2477,13 @@ function handleViewScholar(scholarData, scholarRow) {
   if (!raw) {
     showNotification('Full scholar details not loaded. Using available data.', 'info');
     // Use the basic scholar data we have
+    const basicAddress = [
+      scholarData.province || '',
+      scholarData.city || '',
+      scholarData.barangay || '',
+      scholarData.street || ''
+    ].filter(Boolean).join(', ');
+
     const basicData = {
       first_name: scholarData.name?.split(', ')[1]?.split(' ')[0] || 'Unknown',
       last_name: scholarData.name?.split(', ')[0] || 'Unknown', 
@@ -2473,15 +2491,29 @@ function handleViewScholar(scholarData, scholarRow) {
       batch: scholarData.batch || '-',
       sex: scholarData.sex || '-',
       contact_number: scholarData.contact || '-',
-      home_address: scholarData.address || '-',
+      address: basicAddress || '-',
+      province: scholarData.province || '-',
+      city: scholarData.city || '-',
+      barangay: scholarData.barangay || '-',
+      street: scholarData.street || '-',
       bank_details: scholarData.bankDetails || '-'
     };
     openViewSection(basicData);
     return;
   }
-  
+
+  // Build full address for the raw data
+  const fullAddress = [
+    raw.province || '',
+    raw.city || '',
+    raw.barangay || '',
+    raw.street || ''
+  ].filter(Boolean).join(', ');
+
+  raw.address = fullAddress || '-';
   openViewSection(raw);
 }
+
 
 function openViewSection(scholarData) {
   console.log('openViewSection called with:', scholarData);
@@ -2516,6 +2548,9 @@ function openViewSection(scholarData) {
 }
 
 function populateScholarView(data) {
+
+  console.log('populateScholarView data:', data);
+  console.log('present_address field:', data.present_address);
   // Helper function to safely set text content
   const setText = (elementId, value) => {
     const element = document.getElementById(elementId);
@@ -2542,32 +2577,43 @@ function populateScholarView(data) {
   setText('scholar-detail-name', fullName);
   setText('scholar-detail-batch', data.batch || '-');
   setText('scholar-detail-birthdate', data.birth_date ? formatDate(data.birth_date) : '-');
-  setText('scholar-detail-birthdate', data.birth_date ? formatDate(data.birth_date) : '-');
 
-// ✅ Calculate and display age dynamically
-if (data.birth_date) {
-  const birthDate = new Date(data.birth_date);
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  const dayDiff = today.getDate() - birthDate.getDate();
+  // ✅ Calculate and display age dynamically
+  if (data.birth_date) {
+    const birthDate = new Date(data.birth_date);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    const dayDiff = today.getDate() - birthDate.getDate();
 
-  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
-    age--;
+    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+      age--;
+    }
+
+    setText('scholar-detail-age', age >= 0 ? age : '-');
+  } else {
+    setText('scholar-detail-age', '-');
   }
-
-  setText('scholar-detail-age', age >= 0 ? age : '-');
-} else {
-  setText('scholar-detail-age', '-');
-}
 
   setText('scholar-detail-sex', data.sex || '-');
   setText('scholar-detail-contact', data.contact_number || '-');
   setText('scholar-detail-email', data.email || '-');
   
-  // Address Information
-  setText('scholar-detail-address', data.home_address || '-');
+  // ✅ Address Information (full line + optional parts)
+  const addressParts = [
+    data.province || '',
+    data.city || '',
+    data.barangay || '',
+    data.street || ''
+  ].filter(Boolean).join(', ');
+
   setText('scholar-detail-province', data.province || '-');
+  setText('scholar-detail-city', data.city || '-');
+  setText('scholar-detail-barangay', data.barangay || '-');
+  setText('scholar-detail-street', data.street || '-');
+
+  // Present Address (single field from database)
+  setText('scholar-detail-present-address', data.present_address || '-');
   
   // Academic Information
   setText('scholar-detail-program', data.program || '-');
@@ -2660,13 +2706,24 @@ function testScholarView() {
     birth_date: "2001-04-15",
     sex: "Male",
     contact_number: "+639123456789",
-    home_address: "123 Main Street, Zamboanga City",
     province: "Zamboanga del Sur",
+    city: "Pagadian City",
+    barangay: "Barangay Sta. Lucia",
+    street: "123 Main Street",
     course: "Bachelor of Science in Information Technology",
     school: "Western Mindanao State University",
-    remarks: "Active"
+    school_address: "Normal Road, Baliwasan, Zamboanga City",
+    remarks: "Active",
+    bank_details: "BPI - ****1234",
+    email: "juan.delacruz@example.com",
+    parent_name: "Maria Dela Cruz",
+    relationship: "Mother",
+    ofw_name: "Pedro Dela Cruz",
+    category: "Sea-based",
+    jobsite: "Dubai, UAE",
+    position: "Engineer"
   };
-  
+
   console.log('Testing Scholar View with data:', testData);
   openViewSection(testData);
 }

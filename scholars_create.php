@@ -23,22 +23,13 @@ $input = array_map(function($v) {
 }, $input);
 
 // Required fields
-$required = ['program','batch','last_name','first_name','sex','home_address','province','contact_number','email'];
+$required = ['program','batch','last_name','first_name','sex','province','city','barangay','street','contact_number','email'];
 foreach ($required as $field) {
     if (empty($input[$field]) && $input[$field] !== '0') {
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => "Field '$field' is required"]);
         exit;
     }
-}
-
-// Handle present address - if present_street is provided, map it to the correct database field
-if (isset($input['present_street']) && !empty($input['present_street'])) {
-    // Store the present address in whatever field your database uses
-    // Adjust the field name based on your database schema
-    $input['present_address'] = trim($input['present_street']);
-    // Remove the temporary field name
-    unset($input['present_street']);
 }
 
 // Validate bank details if provided
